@@ -1953,6 +1953,10 @@ pub static KEYPHRASE_REGION_MAP: Lazy<Vec<(Vec<&'static str>, &'static str)>> = 
                     "zionis",
                     "kibbutz",
                     "shin bet",
+                    "ben-gurion",
+                    "isaac herzog",
+                    "smotrich",
+                    "ben gvir"
                 ]),
             }
             .get_region_vec(),
@@ -3139,6 +3143,7 @@ pub static KEYPHRASE_REGION_MAP: Lazy<Vec<(Vec<&'static str>, &'static str)>> = 
                     "khan yunis",
                     "khan younis",
                     "khan yunus",
+                    "arafat",
                 ]),
             }
             .get_region_vec(),
@@ -3309,7 +3314,7 @@ pub static KEYPHRASE_REGION_MAP: Lazy<Vec<(Vec<&'static str>, &'static str)>> = 
                 names: None,
                 demonyms: None,
                 enterprises: None,
-                misc: None,
+                misc: Some(vec!["el fasher", "al-fashir"]),
             }
             .get_region_vec(),
             "sd",
@@ -3522,7 +3527,7 @@ pub static KEYPHRASE_REGION_MAP: Lazy<Vec<(Vec<&'static str>, &'static str)>> = 
                 names: Some(vec!["syria"]),
                 demonyms: None,
                 enterprises: None,
-                misc: None,
+                misc: Some(vec!["golan height"]),
             }
             .get_region_vec(),
             "sy",
