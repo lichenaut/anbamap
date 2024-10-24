@@ -1,0 +1,114 @@
+---
+interface Props {
+  regionOpacityMap: Map<string, number>;
+  isDark: boolean;
+}
+
+let { regionOpacityMap, isDark }: Props = Astro.props;
+let regionOpacityMapObject = Object.fromEntries(regionOpacityMap);
+---
+
+<div
+  id="map"
+  class={`${isDark === true ? "bg-custom-gray" : "bg-custom-blue"} h-screen w-screen relative overflow-hidden`}
+  data-region-opacity-map={JSON.stringify(regionOpacityMapObject)}
+>
+</div>
+<div id="mode" data-mode={JSON.stringify(isDark)}></div>
+<script>
+  import * as L from "leaflet";
+  import * as GeoJSON from "geojson";
+  import * as datasetService from "../../services/dataset_service";
+
+  let mapElement = document.getElementById("map");
+  if (mapElement === null) {
+    throw new Error("Map element not found");
+  }
+
+  let dataMap = datasetService.getDatasetValue(mapElement, "regionOpacityMap");
+  let regionOpacityMap = datasetService.parseJsonToMap(dataMap);
+  let modeElement = datasetService.getElementById("mode");
+  let dataMode = datasetService.getDatasetValue(modeElement, "mode");
+  let isDark = JSON.parse(dataMode);
+  document.addEventListener("DOMContentLoaded", function () {
+    var map = L.map("map", {
+      minZoom: 2,
+      maxZoom: 18,
+      worldCopyJump: true,
+      attributionControl: false,
+    }).setView([0, 0], 3);
+    isDark
+      ? L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        ).addTo(map)
+      : L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        ).addTo(map);
+    fetch("regions.geojson")
+      .then((response: Response) => {
+        if (response.ok) {
+          L.control
+            .attribution({
+              prefix: false,
+              position: "bottomright",
+            })
+            .addTo(map)
+            .setPrefix('<a href="about">About</a> | <a href="faq">FAQ</a>');
+          return response.json();
+        } else {
+          throw new Error("Failed to load GeoJSON file");
+        }
+      })
+      .then((data: GeoJSON.GeoJsonObject) => {
+        L.geoJSON(data, {
+          onEachFeature: (feature: GeoJSON.Feature, layer: L.Layer) => {
+            let properties = feature.properties;
+            if (!properties) {
+              return;
+            }
+
+            let code = properties["ISO_A2"].toLowerCase();
+            if (code === "-99" || code.length > 2) {
+              code = properties["ISO_A2_EH"].toLowerCase();
+              if (code === "-99") {
+                switch (properties["ADMIN"]) {
+                  case "Northern Cyprus":
+                    code = "cy";
+                    break;
+                  case "Somaliland":
+                    code = "so";
+                    break;
+                }
+              }
+            }
+
+            let opacity: number | undefined = regionOpacityMap.get(code);
+            if (opacity === undefined) {
+              opacity = 0;
+            }
+
+            if (layer instanceof L.Path) {
+              layer.setStyle({
+                color: "#ebd8d5",
+                fillColor: "red",
+                weight: 1,
+                fillOpacity: opacity,
+              });
+            }
+
+            layer.on("click", () => {
+              isDark
+                ? (window.location.href = window.location.href.replace(
+                    "dark",
+                    code + "-1"
+                  ))
+                : (window.location.href += code + "-1");
+            });
+          },
+        }).addTo(map);
+      })
+      .catch((error: Error) => {
+        throw error;
+      });
+  });
+</script>
