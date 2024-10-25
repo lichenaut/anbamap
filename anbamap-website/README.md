@@ -75,3 +75,7 @@ Anbamap Website uses [Leaflet](https://leafletjs.com/) for the interactive, colo
 | -------------------- | ------------------------------------------------- |
 | `DOCKER_VOLUME`      | Arbitrarily-valued path. Only mandatory variable. |
 | `YOUTUBE_API_KEY`    | Your Youtube Data API key.                        |
+
+## Deployment
+
+Google Compute Engine example: `pnpm astro dev --host 0.0.0.0 --port 4321`
