@@ -1,0 +1,138 @@
+---
+import { DateTime } from "luxon";
+import * as dbService from "../services/db_service";
+import FaviconC from "../components/FaviconC.astro";
+import * as longService from "../services/long_service";
+import { MediaEntry } from "../services/db_service";
+import PageManagerC from "../components/media/PageManagerC.astro";
+import sqlite3 from "sqlite3";
+import TimeScriptC from "../components/media/TimeScriptC.astro";
+import WorldC from "../components/media/WorldC.astro";
+import MediaC from "../components/media/MediaC.astro";
+import FooterC from "../components/media/FooterC.astro";
+
+let { favoritesPg } = Astro.params;
+if (favoritesPg === undefined) {
+  throw new Error("Favorites page is undefined");
+}
+
+let favoritesPgParts: string[] = favoritesPg.split("-");
+let favorites: string = favoritesPgParts[0];
+let pageString: string = favoritesPgParts[1];
+let page: number = parseInt(pageString);
+let now: number = DateTime.utc().toSeconds();
+let todayStart: number = now - (now % 86400);
+let rangeMin = todayStart - (page - 1) * 86400;
+let rangeMax = todayStart - (page - 2) * 86400;
+let mediaEntries: MediaEntry[] | null = null;
+let db: sqlite3.Database | null = null;
+try {
+  db = dbService.getDatabase();
+  let urlsAll: Map<string, string[]> = await dbService.getUrlsAll(db);
+  mediaEntries = await dbService.getMediaEntries(
+    db,
+    urlsAll,
+    rangeMin,
+    rangeMax
+  );
+} catch (error) {
+  throw new Error(error);
+} finally {
+  if (db) {
+    dbService.closeDatabase(db);
+  }
+}
+
+let url = new URL(Astro.request.url);
+let origin = url.origin;
+let previous: string = origin + "/" + favorites + "-" + (page - 1);
+let next: string = origin + "/" + favorites + "-" + (page + 1);
+mediaEntries.sort((a, b) => b.timestamp - a.timestamp);
+
+export async function getStaticPaths() {
+  return longService.getFavoritesPgPaths();
+}
+---
+
+<meta charset="utf-8" />
+<FaviconC />
+<title>
+  {"Favorites " + DateTime.fromSeconds(rangeMax).toFormat("LLLL d, yyyy")}
+</title>
+<WorldC origin={origin} />
+<div class="pt-4 mx-auto w-fit text-center flex space-x-2">
+  <p class="text-4xl font-semibold text-gray-800">
+    Favorites
+    {DateTime.fromSeconds(rangeMax).toFormat("LLLL d, yyyy")}
+  </p>
+</div>
+<PageManagerC
+  page={page}
+  previous={previous}
+  next={next}
+  origin={origin}
+  region="favorites"
+/>
+<body>
+  <MediaC mediaEntries={mediaEntries} origin={origin} pageString={pageString} />
+</body>
+<PageManagerC
+  page={page}
+  previous={previous}
+  next={next}
+  origin={origin}
+  region="favorites"
+/>
+<footer>
+  <FooterC />
+</footer>
+<script>
+  import { getFavorites } from "../services/favorite_service";
+  import { getIsoFromName } from "../services/long_service";
+
+  document.addEventListener("DOMContentLoaded", (_event) => {
+    const mediaList: HTMLElement | null = document.getElementById("mediaList");
+    if (!mediaList) {
+      return;
+    }
+
+    const mediaEntries: Element[] = Array.from(mediaList.children);
+    let favorites: string[] | null = getFavorites();
+    if (favorites === null) {
+      mediaEntries.forEach((entry) => {
+        entry.remove();
+      });
+      return;
+    }
+
+    mediaEntries.forEach((entry) => {
+      let regions: (string | null)[] = Array.from(
+        entry.querySelectorAll("button")
+      ).map((button) => {
+        let content: string | null = button.textContent;
+        if (content === null) {
+          return null;
+        }
+
+        let name: string | null = getIsoFromName(content.trim());
+        if (name === null) {
+          return null;
+        }
+
+        return name;
+      });
+
+      let hasCommonElement: boolean = regions.some((region) => {
+        if (region === null) {
+          return false;
+        }
+
+        return favorites.includes(region);
+      });
+      if (!hasCommonElement) {
+        entry.remove();
+      }
+    });
+  });
+</script>
+<TimeScriptC regionCode="Favorites" regionName="Favorites" pageNumber={page} />

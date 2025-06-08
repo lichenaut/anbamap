@@ -1,0 +1,21 @@
+---
+import FaviconC from "../components/FaviconC.astro";
+import FavoritesC from "../components/map/ToFavorites.astro";
+import OpacityC from "../components/leaflet/OpacityC.astro";
+import ToModeC from "../components/map/ToModeC.astro";
+---
+
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width" />
+  <meta name="generator" content={Astro.generator} />
+  <FaviconC />
+  <title>Anbamap</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <body class="bg-custom-blue">
+    <ToModeC isDark={false} origin={Astro.request.url + "dark"} />
+    <FavoritesC isDark={false} />
+    <OpacityC isDark={false} />
+  </body>
+</html>

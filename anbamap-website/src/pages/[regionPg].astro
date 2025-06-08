@@ -1,0 +1,103 @@
+---
+import { DateTime } from "luxon";
+import * as dbService from "../services/db_service";
+import FaviconC from "../components/FaviconC.astro";
+import FavoriteC from "../components/media/FavoriteC.astro";
+import * as longService from "../services/long_service";
+import { MediaEntry } from "../services/db_service";
+import PageManagerC from "../components/media/PageManagerC.astro";
+import sqlite3 from "sqlite3";
+import TimeScriptC from "../components/media/TimeScriptC.astro";
+import WorldC from "../components/media/WorldC.astro";
+import MediaC from "../components/media/MediaC.astro";
+import FooterC from "../components/media/FooterC.astro";
+
+let { regionPg } = Astro.params;
+if (regionPg === undefined) {
+  throw new Error("Region is required");
+}
+
+let regionPgParts: string[] = regionPg.split("-");
+let region: string = regionPgParts[0];
+let pageString: string = regionPgParts[1];
+let page: number = parseInt(pageString);
+let now: number = DateTime.utc().toSeconds();
+let todayStart: number = now - (now % 86400);
+let rangeMin = todayStart - (page - 1) * 86400;
+let rangeMax = todayStart - (page - 2) * 86400;
+let mediaEntries: MediaEntry[] | null = null;
+let db: sqlite3.Database | null = null;
+try {
+  db = dbService.getDatabase();
+  let urlsRegions: Map<string, string[]> = await dbService.getUrlsRegions(
+    db,
+    region
+  );
+  mediaEntries = await dbService.getMediaEntries(
+    db,
+    urlsRegions,
+    rangeMin,
+    rangeMax
+  );
+} catch (error) {
+  throw new Error(error);
+} finally {
+  if (db) {
+    dbService.closeDatabase(db);
+  }
+}
+
+let url = new URL(Astro.request.url);
+let origin = url.origin;
+let previous: string = origin + "/" + region + "-" + (page - 1);
+let next: string = origin + "/" + region + "-" + (page + 1);
+let regionName: string | null = longService.getNameFromIso(region);
+if (regionName === null) {
+  throw new Error("Region not found");
+}
+
+mediaEntries.sort((a, b) => b.timestamp - a.timestamp);
+
+export async function getStaticPaths() {
+  return longService.getRegionPgPaths();
+}
+---
+
+<meta charset="utf-8" />
+<FaviconC />
+<title>
+  {
+    region.toUpperCase() +
+      " " +
+      DateTime.fromSeconds(rangeMax).toFormat("LLLL d, yyyy")
+  }
+</title>
+<FavoriteC region={region} />
+<WorldC origin={origin} />
+<div class="pt-4 mx-auto w-fit text-center flex space-x-2">
+  <p class="text-4xl font-semibold text-gray-800">
+    {regionName}
+    {DateTime.fromSeconds(rangeMax).toFormat("LLLL d, yyyy")}
+  </p>
+</div>
+<PageManagerC
+  page={page}
+  previous={previous}
+  next={next}
+  origin={origin}
+  region={region}
+/>
+<body>
+  <MediaC mediaEntries={mediaEntries} origin={origin} pageString={pageString} />
+</body>
+<PageManagerC
+  page={page}
+  previous={previous}
+  next={next}
+  origin={origin}
+  region={region}
+/>
+<footer>
+  <FooterC />
+</footer>
+<TimeScriptC regionCode={region} regionName={regionName} pageNumber={page} />
